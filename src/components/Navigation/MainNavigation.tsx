@@ -1,6 +1,6 @@
 import { Fragment, useContext } from 'react';
 import { NavLink } from 'react-router-dom';
-import AuthContex from '../../context/auth-contex';
+import AuthContex from '../../context/auth-context';
 
 import './MainNavigation.css';
 

@@ -1,18 +1,24 @@
 import { Fragment, useState, useRef, useContext, useEffect } from 'react';
 import axios from 'axios';
 
+import './Events.css';
+import authContex from '../context/auth-context';
+import { EventType, AxiosResponse } from '../types';
+
 import Modal from '../components/Modal/Modal';
 import Backdrop from '../components/Backdrop/Backdrop';
-
-import './Events.css';
-import authContex from '../context/auth-contex';
-import { EventType, AxiosResponse } from '../types';
+import EventList from '../components/Events/EventList';
+import Spinner from '../components/Spinner/Spinner';
 
 function EventsPage(): JSX.Element {
   const context = useContext(authContex);
 
   const [creating, setCreating] = useState(false);
   const [events, setEvents] = useState<EventType[]>([]);
+  const [selectedEvent, setSelectedEvents] = useState<EventType | null>(
+    events[0],
+  );
+  const [isLoading, setIsLoading] = useState(false);
 
   const titleElRef = useRef<HTMLInputElement>(null);
   const priceElRef = useRef<HTMLInputElement>(null);
@@ -20,6 +26,7 @@ function EventsPage(): JSX.Element {
   const descriptionElRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    setIsLoading(true);
     const requestBody = {
       query: `
             query{
@@ -48,19 +55,21 @@ function EventsPage(): JSX.Element {
         if (eventsData) {
           setEvents(eventsData.data.events);
         }
+        setIsLoading(false);
       })
       .catch((err) => {
+        setIsLoading(false);
         console.log(err);
       });
   }, []);
 
-  useEffect(() => {
-    console.log(events);
-  }, [events]);
-
-  const modalConfirmHandler = async () => {
+  const modalConfirmHandler = async (e: any) => {
     try {
+      setIsLoading(true);
+      const event: MouseEvent = e;
+      event.preventDefault();
       setCreating(false);
+
       const title = titleElRef.current?.value;
       let price: string | number | undefined = priceElRef.current?.value;
       const date = dateElRef.current?.value;
@@ -84,17 +93,24 @@ function EventsPage(): JSX.Element {
 
       const requestBody = {
         query: `
-            mutation {
-              createEvent(eventInput: {
-                title: "${title}", 
-                description: "${description}",
-                price: ${price}
-                date: "${date}"
-              }) {
+          mutation {
+            createEvent(eventInput: {
+              title: "${title}", 
+              description: "${description}", 
+              price: ${price}, 
+              date: "${date}", 
+              creator: "${context.userId}"}) {
                 _id
                 title
-              }
+                description
+                price
+                date
+                creator {
+                  _id
+                  email
+                }
             }
+          }           
           `,
       };
 
@@ -112,22 +128,86 @@ function EventsPage(): JSX.Element {
 
       if (response.data.errors) throw response.data.errors[0];
 
-      const event = response.data.data.createEvent;
-      console.log(event);
-      setEvents([...events, event]);
+      const eventData = response.data.data.createEvent;
+      console.log(eventData);
+      setEvents([...events, eventData]);
+      setIsLoading(false);
+    } catch (err) {
+      setIsLoading(false);
+      console.log(err);
+    }
+  };
+
+  const modalCancelHandler = () => {
+    setCreating(false);
+    setSelectedEvents(null);
+  };
+
+  const bookEventHandler = async (e: any) => {
+    try {
+      const event: MouseEvent = e;
+      event.preventDefault();
+
+      const token = context.token;
+      if (!token) return modalCancelHandler();
+
+      if (!selectedEvent) throw new Error('Event is not found');
+
+      const requestBody = {
+        query: `
+          mutation {
+            bookEvent(eventId:"${selectedEvent._id}"){
+              _id
+              createdAt
+              updatedAt
+            }
+          }           
+          `,
+      };
+
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      };
+
+      const response: AxiosResponse<EventType> = await axios.post(
+        'http://localhost:3001/graphql',
+        requestBody,
+        config,
+      );
+
+      if (response.data.errors) throw response.data.errors[0];
+
+      console.log(response);
+      // const eventData = response.data.data.createEvent;
+      // console.log(eventData);
+      // setEvents([...events, eventData]);
+      // setIsLoading(false);
+      modalCancelHandler();
     } catch (err) {
       console.log(err);
     }
   };
 
+  const onDetailHandler = (eventId: string) => {
+    const selectedEvent = events.find((event) => event._id === eventId);
+    selectedEvent && setSelectedEvents(selectedEvent);
+    return { selectedEvent };
+  };
+
+  const formatedDate = selectedEvent && new Date(selectedEvent.date);
+
   return (
     <Fragment>
-      {creating && <Backdrop />}
+      {(creating || selectedEvent) && <Backdrop />}
       {creating && (
         <Modal
           title="Add Event"
-          onConfirm={modalConfirmHandler}
-          onCancel={() => setCreating(false)}
+          selectedEvent={selectedEvent}
+          onConfirm={(e: any) => modalConfirmHandler(e)}
+          onCancel={modalCancelHandler}
+          userId={context.userId}
           canConfirm
           canCancel
         >
@@ -151,6 +231,27 @@ function EventsPage(): JSX.Element {
           </form>
         </Modal>
       )}
+      {selectedEvent && (
+        <Modal
+          title={selectedEvent.title}
+          onConfirm={(e) => bookEventHandler(e)}
+          onCancel={modalCancelHandler}
+          selectedEvent={selectedEvent}
+          userId={context.userId}
+          canConfirm
+          canCancel
+        >
+          <Fragment>
+            <h1>{selectedEvent.title}</h1>
+            <h2>
+              ${selectedEvent.price} -{' '}
+              {formatedDate?.toUTCString().split(' ')[4].slice(0, 5)}{' '}
+              {formatedDate?.toLocaleDateString('id')}
+            </h2>{' '}
+            <p>This is a test</p>
+          </Fragment>
+        </Modal>
+      )}
       {context.token && (
         <div className="events-control">
           <p>Share your own Events!</p>
@@ -159,13 +260,15 @@ function EventsPage(): JSX.Element {
           </button>
         </div>
       )}
-      <ul className="events__list">
-        {events.map((event) => (
-          <li className="events__list-item" key={event._id}>
-            {event.title}
-          </li>
-        ))}
-      </ul>
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        <EventList
+          events={events}
+          userId={context.userId}
+          onDetail={onDetailHandler}
+        />
+      )}
     </Fragment>
   );
 }

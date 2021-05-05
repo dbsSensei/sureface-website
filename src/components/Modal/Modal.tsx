@@ -1,10 +1,13 @@
+import { EventType } from '../../types';
 import './Modal.css';
 
 type ModalProps = {
   title: string;
   children: JSX.Element;
-  onConfirm: () => void;
-  onCancel: () => void;
+  selectedEvent: EventType | null;
+  userId: string;
+  onConfirm: (e?: any) => void;
+  onCancel: (e?: any) => void;
   canConfirm: boolean;
   canCancel: boolean;
 };
@@ -24,7 +27,7 @@ const Modal = (props: ModalProps): JSX.Element => {
         )}
         {props.canConfirm && (
           <button className="btn" onClick={props.onConfirm}>
-            Confirm
+            {props.selectedEvent && props.userId ? 'Booking' : 'Confirm'}
           </button>
         )}
       </section>

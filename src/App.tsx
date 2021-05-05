@@ -5,7 +5,7 @@ import AuthPage from './pages/Auth';
 import BookingsPage from './pages/Bookings';
 import EventsPage from './pages/Events';
 import MainNavigation from './components/Navigation/MainNavigation';
-import AuthContext from './context/auth-contex';
+import AuthContext from './context/auth-context';
 
 import './App.css';
 import { AuthType } from './types';

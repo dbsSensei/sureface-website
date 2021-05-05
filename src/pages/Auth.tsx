@@ -2,7 +2,7 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 
 import './Auth.css';
-import AuthContext from '../context/auth-contex';
+import AuthContext from '../context/auth-context';
 import { AuthType } from '../types';
 
 function AuthPage(): JSX.Element {

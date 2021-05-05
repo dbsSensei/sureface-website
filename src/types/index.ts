@@ -1,11 +1,7 @@
 export type BookingType = {
   _id: string;
-  event: {
-    _doc: EventType | Promise<EventType> | any;
-  };
-  user: {
-    _doc: UserType | Promise<UserType> | any;
-  };
+  event: EventType;
+  user: UserType;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -16,14 +12,14 @@ export type EventType = {
   description: string;
   price: number;
   date: Date;
-  creator: UserType | Promise<UserType> | any;
+  creator?: { _id: string };
 };
 
 export type UserType = {
   _id: string;
   email: string;
   password: string;
-  createdEvents: EventType | Promise<EventType> | any;
+  createdEvents?: { _id: string };
 };
 
 export type LoginInput = {
